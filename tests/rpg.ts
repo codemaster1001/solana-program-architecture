@@ -4,6 +4,7 @@ import { Rpg } from "../target/types/rpg";
 import IDL from "../target/idl/rpg.json";
 import { assert } from "chai";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import web3 from "@solana/web3.js"
  
 describe("RPG", () => {
   // Configure the client to use the local cluster.
@@ -154,7 +155,7 @@ describe("RPG", () => {
    
     // To show that anyone can deposit the action points
     // Ie, give this to a clockwork bot
-    const clockworkWallet = anchor.web3.Keypair.generate();
+    const clockworkWallet = wallet;
    
     // To give it a starting balance
     const clockworkProvider = new anchor.AnchorProvider(
@@ -169,31 +170,49 @@ describe("RPG", () => {
    
     // Have to give the accounts some lamports else the tx will fail
     const amountToInitialize = 10000000000;
+
+    
    
-    const clockworkAirdropTx =
-      await clockworkProgram.provider.connection.requestAirdrop(
-        clockworkWallet.publicKey,
-        amountToInitialize,
-      );
-    await program.provider.connection.confirmTransaction(
-      clockworkAirdropTx,
-      "confirmed",
-    );
-   
-    const treasuryAirdropTx =
-      await clockworkProgram.provider.connection.requestAirdrop(
-        treasury.publicKey,
-        amountToInitialize,
-      );
-    await program.provider.connection.confirmTransaction(
-      treasuryAirdropTx,
-      "confirmed",
-    );
-   
+    // const clockworkAirdropTx =
+    //   await clockworkProgram.provider.connection.requestAirdrop(
+    //     clockworkWallet.publicKey,
+    //     amountToInitialize,
+    //   );
+
+    // const treasuryAirdropTx =
+    //   await clockworkProgram.provider.connection.requestAirdrop(
+    //     treasury.publicKey,
+    //     amountToInitialize,
+    //   );
+    // await program.provider.connection.confirmTransaction(
+    //   treasuryAirdropTx,
+    //   "confirmed",    // const treasuryAirdropTx =
+    //   await clockworkProgram.provider.connection.requestAirdrop(
+    //     treasury.publicKey,
+    //     amountToInitialize,
+    //   );
+    // await program.provider.connection.confirmTransaction(
+    //   treasuryAirdropTx,
+    //   "confirmed",
+    // );
+    // );
+    const transferIx = web3.SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: treasury.publicKey,
+      lamports: amountToInitialize
+    });
+
+    const transaction = new web3.Transaction().add(transferIx);
+
+    await web3.sendAndConfirmTransaction(program.provider.connection, transaction, [wallet]);
+
     const txHash = await clockworkProgram.methods
       .depositActionPoints()
-      .accounts({
+      .accountsStrict({
+        game: gameKey,
         player: playerKey,
+        treasury: treasury.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId
       })
       .rpc();
    
